@@ -34,7 +34,6 @@ An additional dataset that is from the San Francisco public safety database for 
 https://data.sfgov.org/Public-Safety/Police-Department-Incidents/tmnf-yvry
 
 # System Architecture
-![alt text](https://user-images.githubusercontent.com/30711638/48392141-fce4a480-e6d7-11e8-92bf-1c542a421edd.png)
 
 Our project focuses on determining the optimal daily listing price to maximize long-term profit. Initially, we debated between time series regression and optimization modeling. Time series regression captures daily price fluctuations and factors like property type and amenities but doesn’t guarantee an optimal profit-maximizing price. Optimization is ideal for finding the best price but becomes complex when accounting for 365 days and property characteristics. We combined both approaches by using regression in variable creation and simplifying the model with assumptions.
 
@@ -46,20 +45,15 @@ The system architecture separates data from two sources: a GeoJSON file for list
 
 Based on Airbnb’s report for San Francisco, we assumed an average stay of 4.2 nights per booking. Since the guest review rate wasn't available, we assumed it to be 0.5. Additionally, we capped the maximum occupancy rate at 0.95 to account for occasional unrented nights. These assumptions were used to formulate the estimated occupancy rate.
 
-![alt text](https://user-images.githubusercontent.com/30711638/48401720-c3bc2c80-e6f7-11e8-84e7-82cd1dbe25dd.png)
-
 ## Demand Function
 
 Initially, we used separate models to predict listing price and demand. One model used k-Means clustering to group nearby similar properties, estimating monthly demand from the average occupancy rate. Another kNN regression model predicted daily listing price based on property attributes like amenities and safety. Monthly profit was estimated by multiplying the average price by predicted demand.
 
 However, since demand and price are strongly correlated, we combined them into a single model. We prioritized modeling demand first and then incorporated it into the price function, accounting for competitor factors, listing characteristics, and time fluctuations.
 
-![alt text](https://user-images.githubusercontent.com/30711638/48401408-1a753680-e6f7-11e8-9a04-f78caca21b7e.png)
-
 
 ## Competition Analysis
-We model the competitor factor by using the same approach that we initially planned to apply for our monthly demand estimation. Customers tends to choose their Airbnb with a specific location in mind, so all listings that are located close together (within 3-mile radius) will be more likely to compete with each other. Going beyond this, the characteristics and quality of the listing should have an almost equal, and occasionally greater impact on determining occupancy rates relative to those properties competing with one another. From these guides we elected to use k-Means to cluster similar properties within a 3-mile radius distance (figure 2&3). 
-![alt text](https://user-images.githubusercontent.com/30711638/48395835-7aafac80-e6e6-11e8-97ee-334b0695feb4.png)
+We model the competitor factor by using the same approach that we initially planned to apply for our monthly demand estimation. Customers tends to choose their Airbnb with a specific location in mind, so all listings that are located close together (within 3-mile radius) will be more likely to compete with each other. Going beyond this, the characteristics and quality of the listing should have an almost equal, and occasionally greater impact on determining occupancy rates relative to those properties competing with one another. From these guides we elected to use k-Means to cluster similar properties within a 3-mile radius distance.
 
 ## Formulate Demand Function of “Competition” Group
 
@@ -67,7 +61,6 @@ For each cluster, we have a set of data with the X-variable being the listing pr
 $D_{xij} = \alpha* x_{ij}^2 + *x_{ij} + \beta$.  
 We then put this demand function into the optimization model. The objective is to maximize profit in one year, so the formula to calculate profit for each day is the listing price on that day multiplied by the demand function on that day, represented as $D_{xij} * x_{xij}$. It is worth noting that at this point in the analysis, demand in our dataset is the occupancy rate, which represents the probability a property is booked on a given day. We will mention the details of how to calculate the optimal yearly profit in the Decision Model later. 
 	After several trials, we determined that the relationship between demand and price is not always inversely correlated together and straightforward linear; outlier-type cases in particular don’t fit into our model, meaning that extremely expensive listings seem to have different rules of demand governing them, which is reasonable but not accounted for in our limited model. 
-![alt text](https://user-images.githubusercontent.com/30711638/48396056-2eb13780-e6e7-11e8-8c02-1a989dca7e46.png)
 
 ## Prediction of Intrinsic Property Values
 We first set out to incorporate the property-specific characteristics into the model to customize the pricing model for each listing; as mentioned previously if we include too many variables into an optimization, we are less likely to have a valid solution. Instead we used our regression model to determine a “baseline” price, which we define as a price mark that indicates the intrinsic value of an Airbnb property without considering time series fluctuation (seasonalities, weekend vs weekday). Then in the optimization model we display the daily price $$x_{ij}$$  in terms of the defined baseline price with the constraint  
@@ -89,38 +82,18 @@ Parameters:
 
 ### Optimization Model
 
-At this point we had constructed the components necessary for us to begin formulating our final optimization model. As defined above, our demand function will indicate the probability that the property is booked on day i, month j; if this “booked” probability is bigger than 50%, then we assume the property is marked as booked in our model on day i month j. This then allows the host to collect the optimal listing price, $$x_{ij}$$ and subtract the variable cost, $$C_V$$. The binary variable ij is treated as a control because the bookings on the property as a function of its probability. Therefore, the function to estimate monthly profit (months simplified to all be 30 days in length) will be:
+At this point we had constructed the components necessary for us to begin formulating our final optimization model. As defined above, our demand function will indicate the probability that the property is booked on day i, month j; if this “booked” probability is bigger than 50%, then we assume the property is marked as booked in our model on day i month j. This then allows the host to collect the optimal listing price, $$x_{ij}$$ and subtract the variable cost, $$C_V$$.
 
-![alt text](https://user-images.githubusercontent.com/30711638/48392310-c22f3c00-e6d8-11e8-9ec6-870bb1972dac.png)
-
- If occupancy of that month is 45%, then the expected number of days booked in that month is 45% * 30 days = 14 days. We can then retrieve the exact date of that month where j = 1 or D(xj) > 50%, and sum up their corresponding predicted prices to get the expected profit of that month. 
+If occupancy of that month is 45%, then the expected number of days booked in that month is 45% * 30 days = 14 days. We can then retrieve the exact date of that month where j = 1 or D(xj) > 50%, and sum up their corresponding predicted prices to get the expected profit of that month. 
 
 ### Objective function:
 The objective function is to maximize yearly profit, which equals to the revenue subtracted from the cost. The revenue is the sum of optimal listings prices on the days that bookings happen, or in the words, where ij = 1. We take the summation of both weekend and weekday (determined by index j) and of 12 months (determined by index i).
-
-![alt text](https://user-images.githubusercontent.com/30711638/48392350-f0148080-e6d8-11e8-8853-b7197ddeed35.png)
-
-### Output
-![alt text](https://user-images.githubusercontent.com/30711638/48452409-0116cd80-e77d-11e8-9c6a-7016d58226af.png)
 
 We tested two example listings in our optimization model:
 
 1. **Boutique Hotel in Bayview**: Classified as a "high-end" listing based on high safety (score > 7) and luxury amenities. The kNN regression predicted an intrinsic value of $132. The model provided 24 price recommendations for weekdays and weekends over 12 months. The projected yearly profit for this listing was $25,378.
 
 2. **Bed and Breakfast in Chinatown**: This "medium-category" listing had lower safety and amenity scores, with lower demand despite a lower price. Following the same process, the expected yearly profit for this listing was $19,764.
-
-
-## UI Prototype
-Figure 7 shows the first page of the application where hosts input details about their Airbnb property, such as type, number of bedrooms/bathrooms, neighborhood, and amenities. Hosts can either paste the property URL for automatic parsing or manually enter the information. They also set an estimated initial investment and variable booking costs.  
-Figure 8 displays the results from the kNN regression model, predicting the property's intrinsic value, along with a map view of the property location and details.
-
-![atl text](https://user-images.githubusercontent.com/30711638/48452192-e4c66100-e77b-11e8-847a-43a4aef0ffef.png)
-
-Figure 9 displays the results of the optimization model, showing the optimal daily listing price on a calendar. For example, if the decision variable t7,1 = $349, then all weekdays in July are priced at $349, excluding weekends and special events. The figure includes a time series plot comparing neighborhood Airbnb demand (bottom left) and the selected listing’s demand (bottom right), offering hosts insights into their competitiveness.
-
-Figure 10 shows the reporting tools, highlighting expected monthly demand and profit. Demand is based on occupancy rates, while profit is calculated from the predicted bookings. The highest demand and profit months are marked in gold, with a total yearly profit summary provided.
-
-![atl text](https://user-images.githubusercontent.com/30711638/48452195-e728bb00-e77b-11e8-874e-56fb7866e197.png)
 
 ## System Dynamics
 ### Potential Issuses
